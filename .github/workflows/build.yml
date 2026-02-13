@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     steps:
       - name: Checkout code
@@ -21,6 +21,12 @@ jobs:
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
+
+      - name: Install .NET Framework 4.0 Targeting Pack
+        run: |
+          # Use Chocolatey to install .NET 4.0 targeting pack
+          choco install dotnet4.0-targetingpack -y
+        shell: pwsh
 
       - name: Build Rubeus (Release)
         run: |
