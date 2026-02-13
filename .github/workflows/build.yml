@@ -1,0 +1,72 @@
+name: Build Rubeus
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Rubeus (Release)
+        run: |
+          msbuild Rubeus/Rubeus.csproj -p:Configuration=Release -p:Platform=AnyCPU -restore:false -verbosity:minimal
+
+      - name: Get version
+        id: version
+        run: |
+          if ("${{ github.event_name }}" -eq "release") {
+            echo "tag=${{ github.event.release.tag_name }}" >> $env:GITHUB_OUTPUT
+          } else {
+            $date = Get-Date -Format "yyyyMMdd"
+            $shortSha = "${{ github.sha }}".Substring(0, 7)
+            echo "tag=build-$date-$shortSha" >> $env:GITHUB_OUTPUT
+          }
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rubeus-${{ steps.version.outputs.tag }}
+          path: Rubeus/bin/Release/Rubeus.exe
+          if-no-files-found: error
+
+      - name: Create Release (if not already a release)
+        if: github.event_name != 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Rubeus ${{ steps.version.outputs.tag }}
+          body: |
+            Automated build from commit ${{ github.sha }}
+
+            **Commit message:** ${{ github.event.head_commit.message }}
+
+            **Build date:** ${{ github.event.head_commit.timestamp }}
+          files: Rubeus/bin/Release/Rubeus.exe
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Release (if triggered by release event)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Rubeus/bin/Release/Rubeus.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
