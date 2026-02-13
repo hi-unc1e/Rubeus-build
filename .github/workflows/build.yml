@@ -22,10 +22,18 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install .NET Framework 4.0 Targeting Pack
+      - name: Create .NET 4.0 reference assemblies workaround
         run: |
-          # Use Chocolatey to install .NET 4.0 targeting pack
-          choco install dotnet4.0-targetingpack -y
+          # GitHub Actions doesn't have .NET 4.0 targeting pack
+          # Create a symlink from v4.0 to v4.7.2 (which is available)
+          $refPath = "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework"
+          $v40 = "$refPath\v4.0"
+          $v48 = "$refPath\v4.8"
+
+          if (-not (Test-Path $v40)) {
+            Write-Host "Creating v4.0 reference assemblies link to v4.8..."
+            cmd /c mklink /D "$v40" "$v48"
+          }
         shell: pwsh
 
       - name: Build Rubeus (Release)
